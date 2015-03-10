@@ -296,7 +296,7 @@ function makeMats() {
 
 			var mat = new THREE.MeshPhongMaterial( { map: tex, transparent:true })
 			mat.polygonOffset = true;
-			mat.polygonOffsetFactor = Math.random(-.1,.1);
+			mat.polygonOffsetFactor = -.1;
 			mats[key] = mat;
 		}
 	}
@@ -355,6 +355,8 @@ function makeFaces(obj, mats, geo) {
 	for (var f=0;f < faces.length;f++) {
 		if ( faces[f] === void(0)) {
 			faces[f] = new THREE.MeshBasicMaterial({color: 0x000, transparent: true, opacity: 0});
+			mat.polygonOffset = true;
+			mat.polygonOffsetFactor = .1;
 		}
 	}
 	return faces;
