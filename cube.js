@@ -293,8 +293,8 @@ function makeMats() {
 			tex.wrapT = THREE.RepeatWrapping;
 			tex.magFilter= THREE.NearestFilter;
 			tex.minFilter = THREE.LinearMipMapLinearFilter;
-			
-			var mat = new THREE.MeshBasicMaterial( { map: tex })
+
+			var mat = new THREE.MeshPhongMaterial( { map: tex })
 			mat.polygonOffset = true;
 			mat.polygonOffsetFactor = Math.random(-.1,.1);
 			mats[key] = mat;
@@ -354,7 +354,7 @@ function makeFaces(obj, mats, geo) {
 	faces.length = 6;
 	for (var f=0;f < faces.length;f++) {
 		if ( faces[f] === void(0)) {
-			faces[f] = new THREE.MeshPhongMaterial({color: 0x000});
+			faces[f] = new THREE.MeshBasicMaterial({color: 0x000, transparent: true, opacity: 0});
 		}
 	}
 	return faces;
