@@ -16,7 +16,7 @@ var tarray = [
 	["south","north"]
 ];
 var loadFiles = {
-	mesh: "block/pumpkin"
+	mesh: "block/bookshelf"
 }
 var gui = new dat.GUI();
 
@@ -77,7 +77,7 @@ function init() {
 		canvas.height = 128;
 		context.textAlign = 'center';
 		context.font = '32px sans-serif';
-		context.fillStyle = "#"+"0".repeat(i*2)+color.toString(16);
+		context.fillStyle = "#"+Array(i*2).join("0")+color.toString(16);
 		context.fillText(tarray[i][0], 64, 64);
 		mat = new THREE.SpriteMaterial({
 			map: new THREE.Texture(canvas),
@@ -137,7 +137,7 @@ function loadModel(model, compound) {
 	}
 	$.ajax({
 		dataType: "text",
-		url: "/cube/models/"+ model+".json",
+		url: "models/"+ model+".json",
 		success: function(data) {
 			var json;
 			eval("json = "+data);
@@ -160,6 +160,7 @@ function loadModel(model, compound) {
 					var faces = makeFaces(obj, mats, ftsg.geo);
 
 					var mesh = new THREE.Mesh( ftsg.geo, new THREE.MeshFaceMaterial(faces, {transparent: true}) );
+					
 					var temp = ftsg.from.add(ftsg.size.divideScalar(2));
 					
 					mesh.position.set(temp.x,temp.y,temp.z);
@@ -287,12 +288,16 @@ function makeMats() {
 	var mats = {};
 	for (var key in textures) {
 		if (textures.hasOwnProperty(key)) {
-			var tex = THREE.ImageUtils.loadTexture("/cube/textures/"+ textures[key]+".png", THREE.UVMapping);
+			var tex = THREE.ImageUtils.loadTexture("textures/"+ textures[key]+".png", THREE.UVMapping);
 			tex.wrapS = THREE.RepeatWrapping;
 			tex.wrapT = THREE.RepeatWrapping;
 			tex.magFilter= THREE.NearestFilter;
 			tex.minFilter = THREE.LinearMipMapLinearFilter;
-			mats[key] = new THREE.MeshBasicMaterial( { map: tex });
+			
+			var mat = new THREE.MeshBasicMaterial( { map: tex })
+			mat.polygonOffset = true;
+			mat.polygonOffsetFactor = Math.random(-.1,.1);
+			mats[key] = mat;
 		}
 	}
 	return mats;
