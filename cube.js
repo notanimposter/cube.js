@@ -10,6 +10,7 @@ var tenum = {
 	south: 4,
 	north: 5
 };
+
 var tarray = [
 	["east","west"],
 	["up","down"],
@@ -21,17 +22,21 @@ var loadFiles = {
 var gui = new dat.GUI();
 
 var loaders = gui.addFolder("Files");
-var openButton = { open: function() { loadModel(loadFiles.mesh, false) }};
-var loader = loaders.add(loadFiles, "mesh");
-var loader4 = loaders.add(openButton, "open");
-
+loaders.open();
+var loader = loaders.add(loadFiles, "mesh").onFinishChange(function() { loadModel(loadFiles.mesh, false) });
 init();
 
 
 loadModel(loadFiles.mesh, false);
-
+var texControls = gui.addFolder("Textures");
+texControls.open();
 var editorControls = gui.addFolder("Edit");
 editorControls.open();
+var importJSON = {Import: ""};
+var importControl = gui.add(importJSON, "Import").onFinishChange(importModel);
+var exportControl = gui.add({Export: exportModel}, "Export");
+
+
 //put stuff here
 function init() {
 	renderer = new THREE.WebGLRenderer();
@@ -135,46 +140,46 @@ function loadModel(model, compound) {
 		cubes = new THREE.Object3D();
 		textures = {};
 	}
-	$.ajax({
-		dataType: "text",
-		url: "models/"+ model+".json",
-		success: function(data) {
-			var json;
-			eval("json = "+data);
-			//console.log("boop bop");
+	function parseModel(json) {
+		getTextures(json.textures);
+		var mats = makeMats();
+		if (json.elements !== void(0)) {
+			$.each( json.elements, function( key, obj) {
 			
-			
-			if (json.textures !== void(0)) {
-				for (var key in json.textures) {
-					if (json.textures.hasOwnProperty(key)) {
-						textures[key] = json.textures[key];
-					}
-				}
-			}
-			var mats = makeMats();
-			if (json.elements !== void(0)) {
-				$.each( json.elements, function( key, obj) {
+				var ftsg = fromToSizeGeo(obj);
 				
-					var ftsg = fromToSizeGeo(obj);
-					
-					var faces = makeFaces(obj, mats, ftsg.geo);
+				var faces = makeFaces(obj, mats, ftsg.geo);
 
-					var mesh = new THREE.Mesh( ftsg.geo, new THREE.MeshFaceMaterial(faces, {transparent: true}) );
-					
-					var temp = ftsg.from.add(ftsg.size.divideScalar(2));
-					
-					mesh.position.set(temp.x,temp.y,temp.z);
-					mesh.obj = obj;
-					cubes.add(mesh);
-				});
-				cubes.position.set(-8,-8,-8);
-				scene.add(cubes);
-				render();
-			}
-			if (json.parent !== void(0)) {
-				loadModel(json.parent, true)
-			}
+				var mesh = new THREE.Mesh( ftsg.geo, new THREE.MeshFaceMaterial(faces, {transparent: true}) );
+				
+				var temp = ftsg.from.add(ftsg.size.divideScalar(2));
+				
+				mesh.position.set(temp.x,temp.y,temp.z);
+				mesh.obj = obj;
+				cubes.add(mesh);
+			});
+			cubes.position.set(-8,-8,-8);
+			scene.add(cubes);
+			render();
+		}
+		if (json.parent !== void(0)) {
+			loadModel(json.parent, true)
+		}
+	}
+	if (typeof model === "string") {
+		$.ajax({
+			dataType: "text",
+			url: "models/"+ model+".json",
+			success: function(data) {
+				var json;
+				eval("json = "+data);
+				//console.log("boop bop");
+				
+				parseModel(json);
 		}});
+	} else {
+		parseModel(model);
+	}
 }
 renderer.domElement.addEventListener( 'mousedown', function( event ) {
 	if (event.button === 0) {
@@ -261,6 +266,19 @@ function select(id) {
 		
 		render();
 }
+function importModel() {
+	var json;
+	eval("json = "+importJSON.Import);
+	loadModel(json, false);
+}
+function exportModel() {
+	var json = { 'textures': textures, 'elements': []};
+	for (var c in cubes.children) {
+		json['elements'][json['elements'].length] = cubes.children[c].obj;
+	}
+	window.open('data:application/json;' + (window.btoa?'base64,'+btoa(JSON.stringify(json, null, 2)):JSON.stringify(json, null, 2)));
+}
+
 function updateFromObj(box) {
 	var obj = box.obj;
 	box.geometry.verticesNeedUpdate = true;
@@ -283,6 +301,27 @@ function updateFromObj(box) {
 	box.position.set(temp.x,temp.y,temp.z);
 	render();
 	//console.log("bop");
+}
+function getTextures(jsTex) {
+	if (jsTex !== void(0)) {
+		for (var key in jsTex) {
+			if (jsTex.hasOwnProperty(key)) {
+				textures[key] = jsTex[key];
+			}
+		}
+	}
+	for (var g in texControls.__controllers) {
+		try {
+			texControls.__controllers[g].remove();
+		} catch (e) {}
+	}
+	for (var t in textures) {
+		texControls.add(textures, t).onFinishChange(function() {
+			for (var c in cubes.children) {
+				updateFromObj(cubes.children[c]);
+			}
+		});
+	}
 }
 function makeMats() {
 	var mats = {};
