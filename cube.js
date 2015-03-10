@@ -294,7 +294,7 @@ function makeMats() {
 			tex.magFilter= THREE.NearestFilter;
 			tex.minFilter = THREE.LinearMipMapLinearFilter;
 
-			var mat = new THREE.MeshPhongMaterial( { map: tex })
+			var mat = new THREE.MeshPhongMaterial( { map: tex, transparent:true })
 			mat.polygonOffset = true;
 			mat.polygonOffsetFactor = Math.random(-.1,.1);
 			mats[key] = mat;
