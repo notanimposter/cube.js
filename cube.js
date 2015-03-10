@@ -69,7 +69,7 @@ function init() {
 	var color = 0xff0000;
 	for (var i=0; i<3;i++) {
 		var to = new THREE.Vector3(i===0|0,i===1|0,i===2|0);
-		scene2.add(new THREE.ArrowHelper( to, threeZeros, 5, color, .5,.5));
+		scene2.add(new THREE.ArrowHelper( to, threeZeros, 5, color, 2,1));
 		
 		var canvas = document.createElement("canvas")
 		var context = canvas.getContext("2d");
@@ -77,7 +77,7 @@ function init() {
 		canvas.height = 128;
 		context.textAlign = 'center';
 		context.font = '32px sans-serif';
-		context.fillStyle = "#"+Array(i*2).join("0")+color.toString(16);
+		context.fillStyle = "#"+Array(i*2+1).join("0")+color.toString(16);
 		context.fillText(tarray[i][0], 64, 64);
 		mat = new THREE.SpriteMaterial({
 			map: new THREE.Texture(canvas),
