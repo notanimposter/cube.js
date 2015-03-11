@@ -22,6 +22,7 @@ This project is a work in progress and may not do what you want/need it to the w
 - [The jQuery Foundation for jQuery](//jquery.org/)
 - [The Google Data Arts Team](//github.com/dataarts) for [dat.gui](//github.com/dataarts/dat.gui)
 - and (obviously) [Mojang](//mojang.com) for [Minecraft](//minecraft.net)
+
 ---
 ######License:
 Just don't steal. I'm in school right now so I really don't have time to check the licenses of the libraries I'm using.
