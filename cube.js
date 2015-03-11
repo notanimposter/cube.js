@@ -24,18 +24,21 @@ var gui = new dat.GUI();
 var loaders = gui.addFolder("Files");
 loaders.open();
 var loader = loaders.add(loadFiles, "mesh").onFinishChange(function() { loadModel(loadFiles.mesh, false) });
+var importControl = loaders.add({Import: ""}, "Import").onFinishChange(importModel);
+var exportControl = loaders.add({Export: exportModel}, "Export");
 init();
 
 
 loadModel(loadFiles.mesh, false);
 var texControls = gui.addFolder("Textures");
 texControls.open();
-var editorControls = gui.addFolder("Edit");
-editorControls.open();
-var importJSON = {Import: ""};
-var importControl = gui.add(importJSON, "Import").onFinishChange(importModel);
-var exportControl = gui.add({Export: exportModel}, "Export");
 
+
+var editControls = gui.addFolder("Edit");
+editControls.open();
+var newBoxBtn = editControls.add({New: newCube}, "New");
+var selectedControls = gui.addFolder("Selected");
+selectedControls.open();
 
 //put stuff here
 function init() {
@@ -198,14 +201,23 @@ renderer.domElement.addEventListener( 'mousedown', function( event ) {
 		}
 	}
 });
+
 function select(id) {
 		
-		for (var g in editorControls.__controllers) {
+		for (var g in selectedControls.__controllers) {
 			try {
-				editorControls.__controllers[g].remove();
+				selectedControls.__controllers[g].remove();
 			} catch (e) {}
 		}
-		
+
+		for (var name in selectedControls.__folders) {
+			try {
+				selectedControls.__folders[name].close();
+				selectedControls.__folders[name].domElement.parentNode.parentNode.removeChild(selectedControls.__folders[name].domElement.parentNode);
+				delete selectedControls.__folders[name];
+				gui.onResize();
+			} catch (e) {}
+		}
 		
 		if (selected != null) {
 			selected.remove(selected.children[0]);
@@ -215,14 +227,11 @@ function select(id) {
 		var mat = new THREE.MeshBasicMaterial( { color: '#ff00ff', wireframe: true} );
 		var mesh = new THREE.Mesh( selected.geometry, mat );
 		selected.add(mesh);
-		//for (var k in selected.obj)
-		//	var item = selected.obj.elements[k];
-		//console.log(selected.obj);
-		
+
 		var f = {};
 		var jkl = JSON.stringify(selected.obj.from);
 		f.from = jkl.substring(1, jkl.length-1);
-		var ctrl = editorControls.add(f, 'from');
+		var ctrl = selectedControls.add(f, 'from');
 		ctrl.onFinishChange(function(val) {
 			selected.obj.from = JSON.parse("["+val+"]");
 			updateFromObj(selected);
@@ -230,45 +239,66 @@ function select(id) {
 		var t = {};
 		var jkl = JSON.stringify(selected.obj.to);
 		t.to = jkl.substring(1, jkl.length-1);
-		var ctrl2 = editorControls.add(t, 'to');
+		var ctrl2 = selectedControls.add(t, 'to');
 		ctrl2.onFinishChange(function(val) {
 			selected.obj.to = JSON.parse("["+val+"]");
 			updateFromObj(selected);
 		});
-		
-		
+		for (var key in tenum) {
+			var f = selectedControls.addFolder(key);
+			if (selected.obj.faces[key] === void(0)) {
+				
+
+				f.add({Add: function(){}}, "Add").onChange(function() {
+					selected.obj.faces[this.__gui.name] = {"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0};
+
+					updateFromObj(selected);
+					select(selected.id);
+				});
+			}
+		}
 		for (var key in selected.obj.faces) {
 			var face = selected.obj.faces[key];
+			
+			var folder = selectedControls.__folders[key];
+
 			var fd = {};
 			var jkl = JSON.stringify(face.uv);
 			fd[key] = jkl.substring(1, jkl.length-1);
-			var ctrl3 = editorControls.add(fd, key).listen();
+			var ctrl3 = folder.add(fd, key).listen();
 			ctrl3.onFinishChange(function(val) {
 				//selected.obj.to = JSON.parse("["+val+"]");
 				//console.log(this.property);
 				//console.log("running the thing");
 				selected.obj.faces[this.property].uv = JSON.parse("["+val+"]");
-				updateFromObj(selected);
+				updateFromObj(selected.id);
 			});
+
+
 			var tList = {}
 			for (var t in textures) {
 				tList[t] = "#"+t;
 			}
-			var ctrl4 = editorControls.add(selected.obj.faces[key], "texture", tList);
+			var ctrl4 = folder.add(selected.obj.faces[key], "texture", tList);
 			ctrl4.onFinishChange(function(val) {	
 				updateFromObj(selected);
 			});
-			var ctrl5 = editorControls.add(selected.obj.faces[key], "rotation",0,270).step(90);
+			var ctrl5 = folder.add(selected.obj.faces[key], "rotation",0,270).step(90);
 			ctrl4.onFinishChange(function(val) {
 				updateFromObj(selected);
 			});
+			var ctrl5 = folder.add({Delete: function() {}}, "Delete").onChange(function() {
+				delete selected.obj.faces[this.__gui.name];
+				updateFromObj(selected);
+				select(selected.id);
+			});
 		}
-		
+		var delBtn = selectedControls.add({Delete: function() {cubes.remove(selected)}}, "Delete");
 		render();
 }
 function importModel() {
 	var json;
-	eval("json = "+importJSON.Import);
+	eval("json = "+this.object.Import);
 	loadModel(json, false);
 }
 function exportModel() {
@@ -278,7 +308,35 @@ function exportModel() {
 	}
 	window.open('data:application/json;' + (window.btoa?'base64,'+btoa(JSON.stringify(json, null, 2)):JSON.stringify(json, null, 2)));
 }
+function newCube() {
+	var obj = {
+		"from":[0,0,0],
+		"to":[16,16,16],
+		"rotation": {"origin": [ 0,0,0 ], "axis": "y", "angle": 0},
+		"faces": {
+			/*"up":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
+			"down":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
+			"north":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
+			"south":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
+			"west":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
+			"east":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0}*/
+		}
+	};
+	var mats = makeMats();
+	var ftsg = fromToSizeGeo(obj);
+	
+	var faces = makeFaces(obj, mats, ftsg.geo);
 
+	var mesh = new THREE.Mesh( ftsg.geo, new THREE.MeshFaceMaterial(faces, {transparent: true}) );
+	
+	var temp = ftsg.from.add(ftsg.size.divideScalar(2));
+	
+	mesh.position.set(temp.x,temp.y,temp.z);
+	mesh.obj = obj;
+	cubes.add(mesh);
+	select(mesh.id);
+	render();
+}
 function updateFromObj(box) {
 	var obj = box.obj;
 	box.geometry.verticesNeedUpdate = true;
@@ -327,7 +385,11 @@ function makeMats() {
 	var mats = {};
 	for (var key in textures) {
 		if (textures.hasOwnProperty(key)) {
-			var tex = THREE.ImageUtils.loadTexture("textures/"+ textures[key]+".png", THREE.UVMapping);
+			var g = textures[key];
+			if (g[0] === '#') {
+				g = textures[g.sub(1)];
+			}
+			var tex = THREE.ImageUtils.loadTexture("textures/"+g+".png", THREE.UVMapping);
 			tex.wrapS = THREE.RepeatWrapping;
 			tex.wrapT = THREE.RepeatWrapping;
 			tex.magFilter= THREE.NearestFilter;
