@@ -1,7 +1,8 @@
-
-var camera, controls, scene, renderer, renderer2, scene2, camera2;
+var camera, controls, scene, renderer, renderer2, scene2, camera2, scene3;
 var cubes, textures;
 var selected;
+var dragInfo;
+
 var tenum = {
 	east: 0,
 	west: 1,
@@ -23,7 +24,7 @@ var gui = new dat.GUI();
 
 var loaders = gui.addFolder("Files");
 loaders.open();
-var loader = loaders.add(loadFiles, "mesh").onFinishChange(function() { loadModel(loadFiles.mesh, false) });
+//var loader = loaders.add(loadFiles, "mesh").onFinishChange(function() { loadModel(loadFiles.mesh, false) });
 var importControl = loaders.add({Import: ""}, "Import").onFinishChange(importModel);
 var exportControl = loaders.add({Export: exportModel}, "Export");
 init();
@@ -43,8 +44,9 @@ selectedControls.open();
 //put stuff here
 function init() {
 	renderer = new THREE.WebGLRenderer();
-	renderer.setSize( window.innerWidth - 400, window.innerHeight - 10 );
+	renderer.setSize( window.innerWidth - 300, window.innerHeight - 10 );
 	renderer.setClearColor( 0x99ccff, 1 );
+	renderer.autoClear = false;
 	document.body.appendChild(renderer.domElement);
 	
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
@@ -73,11 +75,11 @@ function init() {
 	camera2.up = camera.up; // important!
 	scene2.add( camera2 );
 	
-	var threeZeros = new THREE.Vector3((0,0,0))
+	//var threeZeros = new THREE.Vector3((0,0,0))
 	var color = 0xff0000;
 	for (var i=0; i<3;i++) {
 		var to = new THREE.Vector3(i===0|0,i===1|0,i===2|0);
-		scene2.add(new THREE.ArrowHelper( to, threeZeros, 5, color, 2,1));
+		//scene2.add(new THREE.ArrowHelper( to, threeZeros, 5, color, 2,1));
 		
 		var canvas = document.createElement("canvas")
 		var context = canvas.getContext("2d");
@@ -105,21 +107,22 @@ function init() {
 	
 	
 	
-	//scene2.add( new THREE.AxisHelper(5) );
+	scene2.add( new THREE.AxisHelper(5) );
 	
 	
 	document.body.appendChild(renderer2.domElement);
 	$(renderer2.domElement).css({position: "relative", top: -(window.innerHeight - 10)+128+"px", left: -128+"px"});
 	
-	scene.add(camera);
-	
+	scene3 = new THREE.Scene();
 	
 	
 	var axisHelper = new THREE.AxisHelper( 30 );
 	scene.add( axisHelper );
 }
 
+
 function render() {
+	renderer.clear();
 	camera2.position.copy( camera.position );
 	camera2.position.sub( controls.target ); // added by @libe
 	camera2.position.setLength( 10 );
@@ -128,7 +131,9 @@ function render() {
 	renderer2.render( scene2, camera2 );
 	
 	renderer.render( scene, camera );
-	
+	renderer.clearDepth();
+	renderer.render( scene3, camera );
+
 }
 (function animate() {
 	requestAnimationFrame( animate );
@@ -195,12 +200,70 @@ renderer.domElement.addEventListener( 'mousedown', function( event ) {
 		//projector.unprojectVector( vector, camera );
 		vector.unproject(camera);
 		var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
-		var intersects = raycaster.intersectObjects( cubes.children, true );
-		if (intersects[0] != null) {
-			select(intersects[0].object.id);
+		var cIntersects = raycaster.intersectObjects( cubes.children, true );
+		if (scene3.children[0] !== void(0)) {
+			var tIntersects = raycaster.intersectObjects( scene3.children, true );
 		}
+		if (tIntersects !== void(0) && tIntersects[0] !== void(0)) {
+			dragInfo = {};
+			dragInfo.axis = tIntersects[0].object.parent.name;
+			dragInfo.startPos = {from: selected.obj.from.slice(), to: selected.obj.to.slice()};
+			
+		} else if (cIntersects[0] !== void(0)) {
+			select(cIntersects[0].object.id);
+		}
+		//drag stuff
 	}
 });
+renderer.domElement.addEventListener( 'mousemove', function( event ) {
+	if (dragInfo !== void(0)) {
+		var mouseX = ( event.clientX / renderer.domElement.offsetWidth ) * 2 - 1;
+		var mouseY = ( event.clientY / renderer.domElement.offsetHeight ) * 2 + 1;
+		var aenum = {x:0,y:1,z:2}
+		var mouseLoc;
+		switch(dragInfo.axis) {
+			case 'x':
+			case 'z':
+				mouseLoc = mouseX;
+				break;
+			case 'y':
+				mouseLoc = mouseY;
+		}
+		if (dragInfo.startCoord === void(0)) {
+			dragInfo.startCoord = mouseLoc;
+			return;
+		}
+		var mouseDist = Math.round((dragInfo.startCoord - mouseLoc)*20);
+		selected.obj.from[aenum[dragInfo.axis]] = dragInfo.startPos.from[aenum[dragInfo.axis]] + mouseDist;
+		selected.obj.to[aenum[dragInfo.axis]] = dragInfo.startPos.to[aenum[dragInfo.axis]] + mouseDist;
+		updateFromObj(selected);
+		select(selected.id);
+	}
+});
+renderer.domElement.addEventListener( 'mouseup', function( event ) {
+	dragInfo = void(0);
+});
+function newGizmo(pos) {
+	var gizmo = new THREE.Object3D();
+	var garray = [];
+	var threeZeros = new THREE.Vector3((0,0,0))
+	var color = 0xff0000;
+	for (var i=0; i<3;i++) {
+		var to = new THREE.Vector3(i===0|0,i===1|0,i===2|0);
+		var g = new THREE.ArrowHelper( to, threeZeros, 5, color, 2,1);
+		var axes = ['x','y','z']
+		g.name = axes[i];
+		garray[garray.length] = g;
+		
+		color /= 256;
+	}
+	gizmo.add(garray[0]);
+	gizmo.add(garray[1]);
+	gizmo.add(garray[2]);
+	var v = new THREE.Vector3(0,0,0).copy(pos).add(cubes.position);
+	gizmo.position.set(v.x, v.y, v.z);
+	return gizmo;
+}
 
 function select(id) {
 		
@@ -221,13 +284,15 @@ function select(id) {
 		
 		if (selected != null) {
 			selected.remove(selected.children[0]);
+			scene3.remove(scene3.children[0]);
 		}
 		selected = cubes.getObjectById(id);
 		if (selected === null) return;
 		var mat = new THREE.MeshBasicMaterial( { color: '#ff00ff', wireframe: true} );
 		var mesh = new THREE.Mesh( selected.geometry, mat );
-		selected.add(mesh);
 
+		selected.add(mesh);
+		scene3.add(newGizmo(selected.position));
 		var f = {};
 		var jkl = JSON.stringify(selected.obj.from);
 		f.from = jkl.substring(1, jkl.length-1);
