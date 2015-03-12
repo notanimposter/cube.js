@@ -50,7 +50,6 @@ function init() {
 	renderer.setClearColor( 0x99ccff, 1 );
 	renderer.autoClear = false;
 	document.body.appendChild(renderer.domElement);
-	
 	camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 1, 10000 );
 	camera.position.z = 50;
 	scene = new THREE.Scene();
@@ -110,7 +109,7 @@ function init() {
 	
 	
 	document.body.appendChild(renderer2.domElement);
-	$(renderer2.domElement).css({position: "relative", top: -(window.innerHeight - 10)+128+"px", left: -128+"px"});
+	$(renderer2.domElement).css({position: "absolute", right: 245+"px"});
 	
 	scene3 = new THREE.Scene();
 	
