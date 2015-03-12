@@ -20,7 +20,9 @@ var tarray = [
 var loadFiles = {
 	mesh: "block/bookshelf"
 }
-var gui = new dat.GUI();
+var gui = new dat.GUI({autoPlace:false});
+
+$("body").append($("<div>").addClass("sidebar").append($(gui.domElement)));
 
 var loaders = gui.addFolder("Files");
 loaders.open();
@@ -44,12 +46,12 @@ selectedControls.open();
 //put stuff here
 function init() {
 	renderer = new THREE.WebGLRenderer();
-	renderer.setSize( window.innerWidth - 300, window.innerHeight - 10 );
+	renderer.setSize( window.innerWidth - 245, window.innerHeight - 10 );
 	renderer.setClearColor( 0x99ccff, 1 );
 	renderer.autoClear = false;
 	document.body.appendChild(renderer.domElement);
 	
-	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+	camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 1, 10000 );
 	camera.position.z = 50;
 	scene = new THREE.Scene();
 	scene.add( new THREE.AmbientLight( 0xbbbbbb ) );
@@ -103,10 +105,7 @@ function init() {
 		scene2.add(sprite);
 		color /= 256;
 	}
-	
-	
-	
-	
+
 	scene2.add( new THREE.AxisHelper(5) );
 	
 	
@@ -119,7 +118,6 @@ function init() {
 	var axisHelper = new THREE.AxisHelper( 30 );
 	scene.add( axisHelper );
 }
-
 
 function render() {
 	renderer.clear();
@@ -469,8 +467,8 @@ function makeMats() {
 	return mats;
 }
 function fromToSizeGeo(obj) {
-	var from = new THREE.Vector3(obj.from[0], obj.from[1]*.75, obj.from[2]);
-	var to = new THREE.Vector3(obj.to[0], obj.to[1]*.75, obj.to[2]);
+	var from = new THREE.Vector3(obj.from[0], obj.from[1], obj.from[2]);
+	var to = new THREE.Vector3(obj.to[0], obj.to[1], obj.to[2]);
 	var size = new THREE.Vector3(0,0,0).copy(to).sub(from);
 	var geo = new THREE.BoxGeometry(size.x,size.y,size.z);
 	return {from:from,to:to,size:size,geo:geo};
