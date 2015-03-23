@@ -49,7 +49,8 @@ function init() {
 	renderer.setSize( window.innerWidth - 245, window.innerHeight - 10 );
 	renderer.setClearColor( 0x99ccff, 1 );
 	renderer.autoClear = false;
-	document.body.appendChild(renderer.domElement);
+	$(document.body).append($(renderer.domElement));
+	$(renderer.domElement).attr("tabindex", 1).focus();
 	camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 1, 10000 );
 	camera.position.z = 50;
 	scene = new THREE.Scene();
@@ -187,6 +188,7 @@ function loadModel(model, compound) {
 	}
 }
 renderer.domElement.addEventListener( 'mousedown', function( event ) {
+	$(renderer.domElement).attr("tabindex", 1).focus();
 	if (event.button === 0) {
 		event.preventDefault();
 		console.log("boop boop bop");
@@ -279,12 +281,12 @@ function select(id) {
 			} catch (e) {}
 		}
 		
-		if (selected != null) {
+		if (selected !== null && selected !== void(0)) {
 			selected.remove(selected.children[0]);
 			scene3.remove(scene3.children[0]);
 		}
 		selected = cubes.getObjectById(id);
-		if (selected === null) return;
+		if (selected === void(0) || selected === null) return;
 		var mat = new THREE.MeshBasicMaterial( { color: '#ff00ff', wireframe: true} );
 		var mesh = new THREE.Mesh( selected.geometry, mat );
 
@@ -333,7 +335,7 @@ function select(id) {
 				//console.log(this.property);
 				//console.log("running the thing");
 				selected.obj.faces[this.property].uv = JSON.parse("["+val+"]");
-				updateFromObj(selected.id);
+				updateFromObj(selected);
 			});
 
 
@@ -355,7 +357,7 @@ function select(id) {
 				select(selected.id);
 			});
 		}
-		var delBtn = selectedControls.add({Delete: function() {cubes.remove(selected)}}, "Delete");
+		var delBtn = selectedControls.add({Delete: function() {cubes.remove(selected); select(null);}}, "Delete");
 		render();
 }
 function importModel() {
@@ -448,8 +450,8 @@ function makeMats() {
 	for (var key in textures) {
 		if (textures.hasOwnProperty(key)) {
 			var g = textures[key];
-			if (g[0] === '#') {
-				g = textures[g.sub(1)];
+			if (g.charAt(0) === '#') {
+				g = textures[g.substr(1)];
 			}
 			var tex = THREE.ImageUtils.loadTexture("textures/"+g+".png", THREE.UVMapping);
 			tex.wrapS = THREE.RepeatWrapping;
@@ -524,12 +526,20 @@ function makeFaces(obj, mats, geo) {
 	}
 	return faces;
 }
-renderer.domElement.addEventListener( 'keydown', function(event) {
-	//console.log("bop boop");
-	if (event.keyCode === 46) {
-		
-		cubes.remove(selected);
-		selected = null;
+$(renderer.domElement).keydown(function(event) {
+	console.log(event);
+	if (event.which === 46) {
+		if (selected !== void(0)) {
+			cubes.remove(selected)
+			select(null);
+		}
+	}
+	if (event.shiftKey) {
+		switch(event.which) {
+			case "A".charCodeAt(0):
+				newCube();
+				break;
+		}
 	}
 	render();
 });
