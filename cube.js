@@ -1,7 +1,7 @@
 var camera, controls, scene, renderer, renderer2, scene2, camera2, scene3;
 var cubes, textures;
 var selected;
-var dragInfo;
+var dragInfo, dragHelpers, transformGizmo;
 
 var tenum = {
 	east: 0,
@@ -40,6 +40,7 @@ texControls.open();
 var editControls = gui.addFolder("Edit");
 editControls.open();
 var newBoxBtn = editControls.add({New: newCube}, "New");
+var dupeBoxBtn = editControls.add({Duplicate: function() {newCube(selected)}}, "Duplicate");
 var selectedControls = gui.addFolder("Selected");
 selectedControls.open();
 
@@ -117,8 +118,35 @@ function init() {
 	
 	var axisHelper = new THREE.AxisHelper( 30 );
 	scene.add( axisHelper );
-}
 
+	//gizmo and dragHelper
+	transformGizmo = new THREE.Object3D();
+	dragHelpers = {};
+	var garray = [];
+	var larry  = [];
+	var threeZeros = new THREE.Vector3((0,0,0))
+	var color = 0xff0000;
+	for (var i=0; i<3;i++) {
+		var to = new THREE.Vector3(i===0|0,i===1|0,i===2|0);
+		var g = new THREE.ArrowHelper( to, threeZeros, 5, color, 2,1);
+		var dGeo = new THREE.Geometry();
+		dGeo.vertices.push(
+			new THREE.Vector3().copy(to).multiplyScalar(50),
+			new THREE.Vector3().copy(to).multiplyScalar(-50)
+		)
+		var d = new THREE.Line(dGeo, new THREE.LineDashedMaterial({color: 0x555555, dashSize: .5, gapSize:1}))
+		var axes = ['x','y','z']
+		g.name = axes[i];
+		d.name = axes[i];
+		garray[garray.length] = g;
+		dragHelpers[axes[i]] = d;
+		color /= 256;
+	}
+	transformGizmo.add(garray[0]);
+	transformGizmo.add(garray[1]);
+	transformGizmo.add(garray[2]);
+
+}
 function render() {
 	renderer.clear();
 	camera2.position.copy( camera.position );
@@ -187,17 +215,21 @@ function loadModel(model, compound) {
 		parseModel(model);
 	}
 }
-renderer.domElement.addEventListener( 'mousedown', function( event ) {
+$(renderer.domElement).on( 'mousedown', function( event ) {
 	$(renderer.domElement).attr("tabindex", 1).focus();
+	
 	if (event.button === 0) {
 		event.preventDefault();
-		console.log("boop boop bop");
+		//console.log("boop boop bop");
 		var mouseX = ( event.clientX / renderer.domElement.offsetWidth ) * 2 - 1;
 		var mouseY = -( event.clientY / renderer.domElement.offsetHeight ) * 2 + 1;
 		var vector = new THREE.Vector3( mouseX, mouseY, camera.near );
-		//var projector = new THREE.Projector();
-		//projector.unprojectVector( vector, camera );
+		
+		//deprecated method
+			//var projector = new THREE.Projector();
+			//projector.unprojectVector( vector, camera );
 		vector.unproject(camera);
+		
 		var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
 		var cIntersects = raycaster.intersectObjects( cubes.children, true );
 		if (scene3.children[0] !== void(0)) {
@@ -207,13 +239,30 @@ renderer.domElement.addEventListener( 'mousedown', function( event ) {
 			dragInfo = {};
 			dragInfo.axis = tIntersects[0].object.parent.name;
 			dragInfo.startPos = {from: selected.obj.from.slice(), to: selected.obj.to.slice()};
-			
+			scene3.add(dragHelpers[dragInfo.axis]);
 		} else if (cIntersects[0] !== void(0)) {
 			select(cIntersects[0].object.id);
 		}
-		//drag stuff
+	} else if (event.button === 2) { //I would set it up all clever but it's actually just much more readable this way
+		event.preventDefault();
+		var mouseX = ( event.clientX / renderer.domElement.offsetWidth ) * 2 - 1;
+		var mouseY = -( event.clientY / renderer.domElement.offsetHeight ) * 2 + 1;
+		var vector = new THREE.Vector3( mouseX, mouseY, camera.near );
+		
+		//deprecated method
+			//var projector = new THREE.Projector();
+			//projector.unprojectVector( vector, camera );
+		vector.unproject(camera);
+		
+		var raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+		var cIntersects = raycaster.intersectObjects( cubes.children, true );
+		if (cIntersects[0] !== void(0)) {
+			select(cIntersects[0].object.id);
+		}
 	}
 });
+
+//def change this part to be more draggy
 renderer.domElement.addEventListener( 'mousemove', function( event ) {
 	if (dragInfo !== void(0)) {
 		var mouseX = ( event.clientX / renderer.domElement.offsetWidth ) * 2 - 1;
@@ -240,28 +289,21 @@ renderer.domElement.addEventListener( 'mousemove', function( event ) {
 	}
 });
 renderer.domElement.addEventListener( 'mouseup', function( event ) {
+	if (dragInfo !== void(0))
+		scene3.remove(dragHelpers[dragInfo.axis]);
 	dragInfo = void(0);
 });
-function newGizmo(pos) {
-	var gizmo = new THREE.Object3D();
-	var garray = [];
-	var threeZeros = new THREE.Vector3((0,0,0))
-	var color = 0xff0000;
-	for (var i=0; i<3;i++) {
-		var to = new THREE.Vector3(i===0|0,i===1|0,i===2|0);
-		var g = new THREE.ArrowHelper( to, threeZeros, 5, color, 2,1);
-		var axes = ['x','y','z']
-		g.name = axes[i];
-		garray[garray.length] = g;
+function updateGizmo() {
+	var v = new THREE.Vector3(0,0,0).copy(selected.position).add(cubes.position);
+	transformGizmo.position.set(v.x, v.y, v.z);
+	for (key in dragHelpers) {
+		var u = new THREE.Vector3(key !== 'x'|0,key !== 'y'|0,key !== 'z'|0);
+		dragHelpers[key].position.set(v.x*u.x, v.y*u.y, v.z*u.z);
+		dragHelpers[key].material.needsUpdate = true;
+		dragHelpers[key].geometry.computeLineDistances();
 		
-		color /= 256;
+		
 	}
-	gizmo.add(garray[0]);
-	gizmo.add(garray[1]);
-	gizmo.add(garray[2]);
-	var v = new THREE.Vector3(0,0,0).copy(pos).add(cubes.position);
-	gizmo.position.set(v.x, v.y, v.z);
-	return gizmo;
 }
 
 function select(id) {
@@ -283,7 +325,7 @@ function select(id) {
 		
 		if (selected !== null && selected !== void(0)) {
 			selected.remove(selected.children[0]);
-			scene3.remove(scene3.children[0]);
+			scene3.remove(transformGizmo);
 		}
 		selected = cubes.getObjectById(id);
 		if (selected === void(0) || selected === null) return;
@@ -291,31 +333,30 @@ function select(id) {
 		var mesh = new THREE.Mesh( selected.geometry, mat );
 
 		selected.add(mesh);
-		scene3.add(newGizmo(selected.position));
+		updateGizmo()
+		scene3.add(transformGizmo);
 		var f = {};
-		var jkl = JSON.stringify(selected.obj.from);
-		f.from = jkl.substring(1, jkl.length-1);
-		var ctrl = selectedControls.add(f, 'from');
-		ctrl.onFinishChange(function(val) {
+		var fromVal = JSON.stringify(selected.obj.from);
+		f.from = fromVal.substring(1, fromVal.length-1);
+		var fromBox = selectedControls.add(f, 'from');
+		fromBox.onFinishChange(function(val) {
 			selected.obj.from = JSON.parse("["+val+"]");
 			updateFromObj(selected);
 		});
 		var t = {};
-		var jkl = JSON.stringify(selected.obj.to);
-		t.to = jkl.substring(1, jkl.length-1);
-		var ctrl2 = selectedControls.add(t, 'to');
-		ctrl2.onFinishChange(function(val) {
+		var toVal = JSON.stringify(selected.obj.to);
+		t.to = toVal.substring(1, toVal.length-1);
+		var toBox = selectedControls.add(t, 'to');
+		toBox.onFinishChange(function(val) {
 			selected.obj.to = JSON.parse("["+val+"]");
 			updateFromObj(selected);
 		});
 		for (var key in tenum) {
-			var f = selectedControls.addFolder(key);
-			if (selected.obj.faces[key] === void(0)) {
-				
-
+			var f = selectedControls.addFolder(key); //add folder for direction
+			if (selected.obj.faces[key] === void(0)) { //add add button
 				f.add({Add: function(){}}, "Add").onChange(function() {
 					selected.obj.faces[this.__gui.name] = {"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0};
-
+					
 					updateFromObj(selected);
 					select(selected.id);
 				});
@@ -327,31 +368,37 @@ function select(id) {
 			var folder = selectedControls.__folders[key];
 
 			var fd = {};
-			var jkl = JSON.stringify(face.uv);
-			fd[key] = jkl.substring(1, jkl.length-1);
-			var ctrl3 = folder.add(fd, key).listen();
-			ctrl3.onFinishChange(function(val) {
-				//selected.obj.to = JSON.parse("["+val+"]");
-				//console.log(this.property);
-				//console.log("running the thing");
-				selected.obj.faces[this.property].uv = JSON.parse("["+val+"]");
-				updateFromObj(selected);
+			var uvVal = JSON.stringify(face.uv);
+			fd[key] = uvVal.substring(1, uvVal.length-1);
+			var uvBox = folder.add(fd, key).listen();
+			//was onFinishChange
+			uvBox.onChange(function(val) {
+				//old way
+					//selected.obj.to = JSON.parse("["+val+"]");
+					//console.log(this.property);
+					//console.log("running the thing");
+				try {
+					selected.obj.faces[this.property].uv = JSON.parse("["+val+"]");
+					updateFromObj(selected);
+				} catch(e) {
+					//user is currently editing stuff
+				}
 			});
-
 
 			var tList = {}
 			for (var t in textures) {
 				tList[t] = "#"+t;
 			}
-			var ctrl4 = folder.add(selected.obj.faces[key], "texture", tList);
-			ctrl4.onFinishChange(function(val) {	
+			var texChooser = folder.add(selected.obj.faces[key], "texture", tList);
+			texChooser.onFinishChange(function(val) {	
 				updateFromObj(selected);
 			});
-			var ctrl5 = folder.add(selected.obj.faces[key], "rotation",0,270).step(90);
-			ctrl4.onFinishChange(function(val) {
+			var rotField = folder.add(selected.obj.faces[key], "rotation",0,270).step(90);
+			//was ofc
+			rotField.onChange(function(val) {
 				updateFromObj(selected);
 			});
-			var ctrl5 = folder.add({Delete: function() {}}, "Delete").onChange(function() {
+			var faceDelBtn = folder.add({Delete: function() {}}, "Delete").onChange(function() {
 				delete selected.obj.faces[this.__gui.name];
 				updateFromObj(selected);
 				select(selected.id);
@@ -372,30 +419,32 @@ function exportModel() {
 	}
 	window.open('data:application/json;' + (window.btoa?'base64,'+btoa(JSON.stringify(json, null, 2)):JSON.stringify(json, null, 2)));
 }
-function newCube() {
-	var obj = {
-		"from":[0,0,0],
-		"to":[16,16,16],
-		"rotation": {"origin": [ 0,0,0 ], "axis": "y", "angle": 0},
-		"faces": {
-			/*"up":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
-			"down":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
-			"north":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
-			"south":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
-			"west":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0},
-			"east":{"uv":[0,0,16,16],"texture":"#"+Object.keys(textures)[0],"rotation":0}*/
-		}
-	};
-	var mats = makeMats();
-	var ftsg = fromToSizeGeo(obj);
-	
-	var faces = makeFaces(obj, mats, ftsg.geo);
+function newCube(maybeDupe) {
+	var mesh;
+	var obj;
+	if (maybeDupe !== undefined) {
+		select(null);
+		mesh = maybeDupe.clone();
+		mesh.geometry = maybeDupe.geometry.clone();
+		obj = JSON.parse(JSON.stringify(maybeDupe.obj));
+	} else {
+		obj = {
+			"from":[0,0,0],
+			"to":[16,16,16],
+			"rotation": {"origin": [ 0,0,0 ], "axis": "y", "angle": 0}, //support these eventually
+			"faces": {}
+		};
+		var mats = makeMats();
+		var ftsg = fromToSizeGeo(obj);
+		
+		var faces = makeFaces(obj, mats, ftsg.geo);
 
-	var mesh = new THREE.Mesh( ftsg.geo, new THREE.MeshFaceMaterial(faces, {transparent: true}) );
-	
-	var temp = ftsg.from.add(ftsg.size.divideScalar(2));
-	
-	mesh.position.set(temp.x,temp.y,temp.z);
+		mesh = new THREE.Mesh( ftsg.geo, new THREE.MeshFaceMaterial(faces, {transparent: true}) );
+		
+		var temp = ftsg.from.add(ftsg.size.divideScalar(2));
+		
+		mesh.position.set(temp.x,temp.y,temp.z);
+	}
 	mesh.obj = obj;
 	cubes.add(mesh);
 	select(mesh.id);
@@ -487,6 +536,7 @@ function makeFaces(obj, mats, geo) {
 		var newUvs = face.uv.slice();
 		
 		for (var i=1;i<=(face.rotation/90);i++) {
+			//now-resolved rotation issues
 			//if (tenum[k] === 0) {
 			//	var e = newUvs.shift();
 			//	newUvs[3] = e;
@@ -527,17 +577,20 @@ function makeFaces(obj, mats, geo) {
 	return faces;
 }
 $(renderer.domElement).keydown(function(event) {
-	console.log(event);
-	if (event.which === 46) {
+	//console.log(event);
+	if (!event.ctrlKey) event.preventDefault();
+	if (event.which === 46 || event.which === 8) { //delete and bksp
 		if (selected !== void(0)) {
 			cubes.remove(selected)
 			select(null);
 		}
-	}
-	if (event.shiftKey) {
+	} else if (event.shiftKey) {
 		switch(event.which) {
-			case "A".charCodeAt(0):
+			case "A".charCodeAt(0): //shift+a
 				newCube();
+				break;
+			case "D".charCodeAt(0): //shift+d
+				newCube(selected);
 				break;
 		}
 	}
