@@ -3,7 +3,7 @@
 
 ######by notanimposter / Logan Dean
 
-#######(this is really outdated now and just poorly made in general; I have a rewrite in progress but it's going sorta slowly because school and other stuff)
+######(this is really outdated now and just poorly made in general; I have a rewrite in progress but it's going sorta slowly because school and other stuff)
 
 ---
 #####Disclaimer
