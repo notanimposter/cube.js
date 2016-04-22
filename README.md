@@ -3,6 +3,8 @@
 
 ######by notanimposter / Logan Dean
 
+#######(this is really outdated now and just poorly made in general; I have a rewrite in progress but it's going sorta slowly because school and other stuff)
+
 ---
 #####Disclaimer
 This project is a work in progress and may not do what you want/need it to the way you want/need it to. If you want some functionality implemented, make a suggestion/issue.
